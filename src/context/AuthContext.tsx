@@ -46,11 +46,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setRole(userDoc.data().role as any);
-        } else {
-          setRole('SALES_AGENT'); // Fallback
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setRole(userDoc.data().role as any);
+          } else {
+            setRole('SALES_AGENT'); // Fallback
+          }
+        } catch (err) {
+          console.error("Error fetching user role:", err);
+          setRole('SALES_AGENT'); // Fallback on error
         }
       } else {
         setUser((prevUser) => {
