@@ -51,7 +51,8 @@ service cloud.firestore {
     // Inventory
     match /inventory/{inventoryId} {
       allow read: if isSalesAgent(); 
-      allow write: if isAdmin();
+      allow update: if isSalesAgent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity']);
+      allow create, update, delete: if isAdmin();
     }
 
     // Sales
