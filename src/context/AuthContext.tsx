@@ -52,15 +52,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setRole('SALES_AGENT'); // Fallback
         }
-      } else if (!user) { // Only clear if not in demo mode
-        setUser(null);
-        setRole(null);
+      } else {
+        setUser((prevUser) => {
+          // Only clear if not in demo mode
+          if (prevUser && 'uid' in prevUser && prevUser.uid === 'demo-user-id') {
+            return prevUser;
+          }
+          setRole(null);
+          return null;
+        });
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, role, loading, isAdmin: role === 'ADMIN', loginAsDemo, logout }}>
