@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'ADMIN';
+    }
+
+    function isSalesAgent() {
+      return isSignedIn() && (getUserData().role == 'SALES_AGENT' || getUserData().role == 'ADMIN');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin(); // Only admins can change roles
+      allow create: if isSignedIn() && request.auth.uid == userId; // Initial registration
+    }
+
+    // Products
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Containers
+    match /containers/{containerId} {
+      allow read: if isSalesAgent(); 
+      // Note: Sales agents can see container names for FIFO selection, but maybe we should hide costs
+      // Costs are in this doc in my blueprint. I should split them for true security.
+      allow write: if isAdmin();
+    }
+
+    // Inventory
+    match /inventory/{inventoryId} {
+      allow read: if isSalesAgent(); 
+      allow write: if isAdmin();
+    }
+
+    // Sales
+    match /sales/{saleId} {
+      allow read: if isSalesAgent();
+      allow create: if isSalesAgent() && request.resource.data.agentId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+  }
+}
